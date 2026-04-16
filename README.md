@@ -1,2 +1,2 @@
-# zotero-subcollection---html-sync
+# zoterosubcollection-htmlsync
 for my timeline library
