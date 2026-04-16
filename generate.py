@@ -48,6 +48,7 @@ def zotero_get(path, params=None):
 
 def fetch_all_items(collection_key):
     """Fetch all items in a collection, handling pagination."""
+    EXCLUDE_TYPES = {"attachment", "note"}
     items = []
     start = 0
     limit = 100
@@ -55,11 +56,13 @@ def fetch_all_items(collection_key):
         batch = zotero_get(f"/collections/{collection_key}/items/top", {
             "limit": limit,
             "start": start,
-            "itemType": "-attachment || -note",
         })
         if not batch:
             break
-        items.extend(batch)
+        items.extend(
+            item for item in batch
+            if item.get("data", {}).get("itemType") not in EXCLUDE_TYPES
+        )
         if len(batch) < limit:
             break
         start += limit
