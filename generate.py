@@ -39,7 +39,6 @@ def zotero_get(path, params=None):
     url = BASE_URL + path
     if params:
         url += "?" + urllib.parse.urlencode(params)
-    print(f"DEBUG URL: {url}", file=sys.stderr)
     req = urllib.request.Request(url, headers={
         "Zotero-API-Key": API_KEY,
         "Zotero-API-Version": "3",
@@ -229,34 +228,34 @@ HTML_TEMPLATE = """\
 
     // Build tag buttons from unique tags across all items
     const allTags = new Set();
-    items.forEach(li => {
+    items.forEach(li => {{
       (li.dataset.tags || '').split('|').filter(Boolean).forEach(t => allTags.add(t));
-    });
+    }});
 
     let activeTag = null;
 
-    [...allTags].sort().forEach(tag => {
+    [...allTags].sort().forEach(tag => {{
       const btn = document.createElement('button');
       btn.className = 'tag-btn';
       btn.textContent = tag;
-      btn.addEventListener('click', () => {
-        if (activeTag === tag) {
+      btn.addEventListener('click', () => {{
+        if (activeTag === tag) {{
           activeTag = null;
           btn.classList.remove('active');
-        } else {
+        }} else {{
           activeTag = tag;
           document.querySelectorAll('.tag-btn').forEach(b => b.classList.remove('active'));
           btn.classList.add('active');
-        }
+        }}
         applyFilters();
-      });
+      }});
       tagFilters.appendChild(btn);
-    });
+    }});
 
-    function applyFilters() {
+    function applyFilters() {{
       const q = search.value.toLowerCase();
       let visible = 0;
-      items.forEach(li => {
+      items.forEach(li => {{
         const text = li.dataset.search || '';
         const tags = (li.dataset.tags || '').split('|');
         const matchesSearch = !q || text.includes(q);
@@ -264,9 +263,9 @@ HTML_TEMPLATE = """\
         const show = matchesSearch && matchesTag;
         li.hidden = !show;
         if (show) visible++;
-      });
+      }});
       emptyMsg.hidden = visible > 0;
-    }
+    }}
 
     search.addEventListener('input', applyFilters);
   </script>
