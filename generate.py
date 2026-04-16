@@ -16,6 +16,7 @@ Optional:
 import os
 import sys
 import json
+import string
 import urllib.request
 import urllib.parse
 from datetime import datetime, timezone
@@ -219,20 +220,20 @@ def format_mla(data):
 
 # ── HTML generation ───────────────────────────────────────────────────────────
 
-HTML_TEMPLATE = """\
+HTML_TEMPLATE = string.Template("""\
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>{title}</title>
+  <title>$title</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <header>
-    <h1>{title}</h1>
+    <h1>$title</h1>
     <p class="meta">
-      {count} item{plural} &middot; last synced {timestamp}
+      $count item$plural &middot; last synced $timestamp
     </p>
   </header>
 
@@ -243,7 +244,7 @@ HTML_TEMPLATE = """\
     </div>
 
     <ol class="bibliography" id="bibliography">
-{items}
+$items
     </ol>
 
     <p class="empty-msg" id="empty-msg" hidden>No items match your filter.</p>
@@ -301,7 +302,7 @@ HTML_TEMPLATE = """\
   </script>
 </body>
 </html>
-"""
+""")
 
 ITEM_TEMPLATE = """\
       <li data-search="{search}" data-tags="{tags}">
@@ -383,7 +384,7 @@ def main():
     count = len(items)
     plural = "" if count == 1 else "s"
 
-    html = HTML_TEMPLATE.format(
+    html = HTML_TEMPLATE.substitute(
         title=escape(PAGE_TITLE),
         count=count,
         plural=plural,
