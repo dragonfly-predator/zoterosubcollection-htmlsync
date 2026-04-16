@@ -175,8 +175,7 @@ def format_mla(data):
             )
             parts.append(f"edited by {ed_names},")
         if publisher:
-            pub = f"{pub_place + ': ' if pub_place else ''}{publisher},"
-            parts.append(pub)
+            parts.append(f"{publisher},")
         if year:
             parts.append(year + ",")
         if pages:
@@ -191,9 +190,7 @@ def format_mla(data):
                 for e in editors
             )
             parts.append(f"Edited by {ed_names},")
-        if pub_place and publisher:
-            parts.append(f"{pub_place}: {publisher},")
-        elif publisher:
+        if publisher:
             parts.append(f"{publisher},")
         if year:
             parts.append(year + ".")
