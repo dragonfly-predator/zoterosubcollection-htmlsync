@@ -1,0 +1,40 @@
+name: Sync Zotero
+
+on:
+  schedule:
+    - cron: "0 4 * * *"   # daily at 04:00 UTC — adjust as needed
+  workflow_dispatch:        # allow manual runs from the Actions tab
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Generate index.html
+        env:
+          ZOTERO_API_KEY:      ${{ secrets.ZOTERO_API_KEY }}
+          ZOTERO_USER_ID:      ${{ secrets.ZOTERO_USER_ID }}
+          ZOTERO_COLLECTION:   ${{ secrets.ZOTERO_COLLECTION }}
+          # Optional overrides (uncomment and edit as needed):
+          # ZOTERO_LIBRARY_TYPE: user
+          # PAGE_TITLE: My Reading List
+        run: python generate.py
+
+      - name: Commit & push if changed
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          git diff --cached --quiet || git commit -m "chore: sync Zotero [skip ci]"
+          git push
