@@ -1,0 +1,162 @@
+/* ── Reset & base ─────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:        #faf9f7;
+  --surface:   #ffffff;
+  --border:    #e2ddd8;
+  --text:      #1a1816;
+  --muted:     #6b6560;
+  --accent:    #2d5f3f;
+  --accent-lt: #e8f2ec;
+  --tag-bg:    #f0ece8;
+  --tag-active:#2d5f3f;
+  --tag-active-text: #ffffff;
+  --radius:    4px;
+  --font-serif: "Georgia", "Times New Roman", serif;
+  --font-sans:  "Helvetica Neue", Arial, sans-serif;
+}
+
+html { font-size: 16px; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-serif);
+  line-height: 1.6;
+  min-height: 100vh;
+}
+
+/* ── Layout ───────────────────────────────────────────────────── */
+header, main {
+  max-width: 780px;
+  margin: 0 auto;
+  padding: 0 1.5rem;
+}
+
+header {
+  padding-top: 3rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 2px solid var(--text);
+  margin-bottom: 2rem;
+}
+
+/* ── Header ───────────────────────────────────────────────────── */
+h1 {
+  font-family: var(--font-serif);
+  font-size: clamp(1.6rem, 4vw, 2.2rem);
+  font-weight: normal;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+}
+
+.meta {
+  margin-top: 0.5rem;
+  font-family: var(--font-sans);
+  font-size: 0.8rem;
+  color: var(--muted);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+/* ── Controls ─────────────────────────────────────────────────── */
+.controls {
+  margin-bottom: 2rem;
+}
+
+#search {
+  display: block;
+  width: 100%;
+  padding: 0.6rem 0.85rem;
+  font-family: var(--font-sans);
+  font-size: 0.95rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  outline: none;
+  transition: border-color 0.15s;
+  margin-bottom: 0.85rem;
+}
+#search:focus { border-color: var(--accent); }
+#search::placeholder { color: var(--muted); }
+
+.tag-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.tag-btn {
+  font-family: var(--font-sans);
+  font-size: 0.75rem;
+  padding: 0.25rem 0.65rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--tag-bg);
+  color: var(--text);
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s, color 0.12s;
+}
+.tag-btn:hover { border-color: var(--accent); color: var(--accent); }
+.tag-btn.active {
+  background: var(--tag-active);
+  border-color: var(--tag-active);
+  color: var(--tag-active-text);
+}
+
+/* ── Bibliography list ────────────────────────────────────────── */
+.bibliography {
+  list-style: none;
+  padding: 0;
+}
+
+.bibliography li {
+  padding: 1.1rem 0;
+  border-bottom: 1px solid var(--border);
+}
+.bibliography li:last-child { border-bottom: none; }
+
+.citation {
+  font-size: 0.975rem;
+  line-height: 1.65;
+  /* Hanging indent for MLA */
+  padding-left: 2em;
+  text-indent: -2em;
+}
+
+/* ── Tags on items ────────────────────────────────────────────── */
+.tags {
+  margin-top: 0.55rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.tag {
+  font-family: var(--font-sans);
+  font-size: 0.72rem;
+  padding: 0.15rem 0.55rem;
+  background: var(--accent-lt);
+  color: var(--accent);
+  border-radius: 999px;
+  letter-spacing: 0.02em;
+}
+
+/* ── Empty state ──────────────────────────────────────────────── */
+.empty-msg {
+  font-family: var(--font-sans);
+  color: var(--muted);
+  font-size: 0.9rem;
+  padding: 2rem 0;
+  text-align: center;
+}
+
+/* ── Footer breathing room ────────────────────────────────────── */
+main { padding-bottom: 4rem; }
+
+/* ── Responsive ───────────────────────────────────────────────── */
+@media (max-width: 520px) {
+  header, main { padding-left: 1rem; padding-right: 1rem; }
+  h1 { font-size: 1.5rem; }
+}
