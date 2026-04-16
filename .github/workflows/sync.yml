@@ -21,7 +21,7 @@ jobs:
         with:
           python-version: "3.12"
 
-- name: Generate index.html
+      - name: Generate index.html
         env:
           ZOTERO_API_KEY:      ${{ secrets.ZOTERO_API_KEY }}
           ZOTERO_USER_ID:      ${{ secrets.ZOTERO_USER_ID }}
