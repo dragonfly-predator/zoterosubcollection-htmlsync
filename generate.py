@@ -56,10 +56,11 @@ def fetch_all_items(collection_key):
         batch = zotero_get(f"/collections/{collection_key}/items/top", {
             "limit": limit,
             "start": start,
-            "itemType": "-attachment || -note",
         })
         if not batch:
             break
+        # Filter out attachments and notes
+        batch = [i for i in batch if i.get("data", {}).get("itemType") not in ("attachment", "note")]
         items.extend(batch)
         if len(batch) < limit:
             break
