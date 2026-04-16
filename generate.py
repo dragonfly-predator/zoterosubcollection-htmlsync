@@ -341,7 +341,7 @@ def main():
     print(f"  {len(items)} item(s) retrieved.")
 
     # Sort by first author last name, then title
-   def sort_key(item):
+    def sort_key(item):
         d = item.get("data", {})
         creators = d.get("creators", [])
         authors = [c for c in creators if c.get("creatorType") == "author"]
