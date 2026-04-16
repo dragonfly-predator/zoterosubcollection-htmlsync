@@ -56,7 +56,7 @@ def fetch_all_items(collection_key):
         batch = zotero_get(f"/collections/{collection_key}/items/top", {
             "limit": limit,
             "start": start,
-            "itemType": "-attachment -note",
+            "itemType": "-attachment || -note",
         })
         if not batch:
             break
