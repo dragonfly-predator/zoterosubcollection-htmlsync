@@ -55,11 +55,10 @@ def fetch_all_items(collection_key):
         batch = zotero_get(f"/collections/{collection_key}/items/top", {
             "limit": limit,
             "start": start,
+            "itemType": "-attachment -note",
         })
         if not batch:
             break
-        # Filter out attachments and notes
-        batch = [i for i in batch if i.get("data", {}).get("itemType") not in ("attachment", "note")]
         items.extend(batch)
         if len(batch) < limit:
             break
@@ -74,8 +73,19 @@ def format_author_mla(creator):
         return f"{creator['lastName']}, {creator['firstName']}"
     return creator.get("name", "")
 
+def format_author_normal(creator):
+    """Format a creator in normal (non-inverted) order: First Last."""
+    if "firstName" in creator and "lastName" in creator:
+        return f"{creator['firstName']} {creator['lastName']}".strip()
+    return creator.get("name", "")
+
 def format_authors_mla(creators):
-    """Format a list of creators in MLA style."""
+    """Format a list of creators in MLA 9th-edition style.
+
+    - 1 author:  Last, First.
+    - 2–3 authors: Last, First, First Last, and First Last.
+    - 4+ authors: Last, First, et al.
+    """
     authors = [c for c in creators if c.get("creatorType") == "author"]
     if not authors:
         authors = creators  # fallback
@@ -83,10 +93,14 @@ def format_authors_mla(creators):
         return ""
     if len(authors) == 1:
         return format_author_mla(authors[0])
-    if len(authors) == 2:
-        a, b = authors
-        return f"{format_author_mla(a)}, and {format_author_mla(b)}"
-    # 3+: first author et al.
+    if len(authors) <= 3:
+        # First author inverted; remaining in normal order
+        parts = [format_author_mla(authors[0])]
+        for a in authors[1:-1]:
+            parts.append(format_author_normal(a))
+        parts_str = ", ".join(parts)
+        return f"{parts_str}, and {format_author_normal(authors[-1])}"
+    # 4+ authors: et al.
     return f"{format_author_mla(authors[0])}, et al."
 
 def format_mla(data):
@@ -120,7 +134,9 @@ def format_mla(data):
     # Title
     if item_type in ("journalArticle", "magazineArticle", "newspaperArticle",
                      "bookSection", "conferencePaper", "blogPost", "webpage"):
-        parts.append(f'"{title}."')
+        # Period goes inside quotes unless title already ends in punctuation
+        end = "" if title.rstrip() and title.rstrip()[-1] in ".?!" else "."
+        parts.append(f'"{title}{end}"')
     else:
         parts.append(f"*{title}*.")
 
@@ -139,6 +155,10 @@ def format_mla(data):
                 parts.append(year + ",")
             if pages:
                 parts.append(f"pp. {pages}.")
+            else:
+                # Close the entry with a period if there are no pages
+                if parts and parts[-1].endswith(","):
+                    parts[-1] = parts[-1][:-1] + "."
     elif item_type == "bookSection":
         book_title = data.get("bookTitle", "")
         editors = [c for c in creators if c.get("creatorType") == "editor"]
@@ -158,6 +178,15 @@ def format_mla(data):
         if pages:
             parts.append(f"pp. {pages}.")
     elif item_type in ("book", "thesis", "report"):
+        # If the book has an author AND an editor, place editor after title
+        editors = [c for c in creators if c.get("creatorType") == "editor"]
+        authors = [c for c in creators if c.get("creatorType") == "author"]
+        if editors and authors:
+            ed_names = ", ".join(
+                f"{e.get('firstName','')} {e.get('lastName','')}".strip()
+                for e in editors
+            )
+            parts.append(f"Edited by {ed_names},")
         if pub_place and publisher:
             parts.append(f"{pub_place}: {publisher},")
         elif publisher:
@@ -171,8 +200,6 @@ def format_mla(data):
             parts.append(year + ".")
         if url:
             parts.append(url + ".")
-        if accessed:
-            parts.append(f"Accessed {accessed}.")
     else:
         # Generic fallback
         if publisher:
@@ -228,34 +255,34 @@ HTML_TEMPLATE = """\
 
     // Build tag buttons from unique tags across all items
     const allTags = new Set();
-    items.forEach(li => {{
+    items.forEach(li => {
       (li.dataset.tags || '').split('|').filter(Boolean).forEach(t => allTags.add(t));
-    }});
+    });
 
     let activeTag = null;
 
-    [...allTags].sort().forEach(tag => {{
+    [...allTags].sort().forEach(tag => {
       const btn = document.createElement('button');
       btn.className = 'tag-btn';
       btn.textContent = tag;
-      btn.addEventListener('click', () => {{
-        if (activeTag === tag) {{
+      btn.addEventListener('click', () => {
+        if (activeTag === tag) {
           activeTag = null;
           btn.classList.remove('active');
-        }} else {{
+        } else {
           activeTag = tag;
           document.querySelectorAll('.tag-btn').forEach(b => b.classList.remove('active'));
           btn.classList.add('active');
-        }}
+        }
         applyFilters();
-      }});
+      });
       tagFilters.appendChild(btn);
-    }});
+    });
 
-    function applyFilters() {{
+    function applyFilters() {
       const q = search.value.toLowerCase();
       let visible = 0;
-      items.forEach(li => {{
+      items.forEach(li => {
         const text = li.dataset.search || '';
         const tags = (li.dataset.tags || '').split('|');
         const matchesSearch = !q || text.includes(q);
@@ -263,9 +290,9 @@ HTML_TEMPLATE = """\
         const show = matchesSearch && matchesTag;
         li.hidden = !show;
         if (show) visible++;
-      }});
+      });
       emptyMsg.hidden = visible > 0;
-    }}
+    }
 
     search.addEventListener('input', applyFilters);
   </script>
@@ -343,11 +370,8 @@ def main():
     # Sort by first author last name, then title
     def sort_key(item):
         d = item.get("data", {})
-        creators = d.get("creators", [])
-        authors = [c for c in creators if c.get("creatorType") == "author"]
-        editors = [c for c in creators if c.get("creatorType") == "editor"]
-        primary = authors if authors else editors
-        last = primary[0].get("lastName", "zzzz").lower() if primary else "zzzz"
+        authors = [c for c in d.get("creators", []) if c.get("creatorType") == "author"]
+        last = authors[0].get("lastName", "zzzz").lower() if authors else "zzzz"
         return (last, d.get("title", "").lower())
 
     items.sort(key=sort_key)
