@@ -21,15 +21,16 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Generate index.html
+- name: Generate index.html
         env:
           ZOTERO_API_KEY:      ${{ secrets.ZOTERO_API_KEY }}
           ZOTERO_USER_ID:      ${{ secrets.ZOTERO_USER_ID }}
           ZOTERO_COLLECTION:   ${{ secrets.ZOTERO_COLLECTION }}
-          # Optional overrides (uncomment and edit as needed):
-          # ZOTERO_LIBRARY_TYPE: user
-          # PAGE_TITLE: My Reading List
-        run: python generate.py
+        run: |
+          echo "USER_ID length: ${#ZOTERO_USER_ID}"
+          echo "COLLECTION length: ${#ZOTERO_COLLECTION}"
+          echo "API_KEY length: ${#ZOTERO_API_KEY}"
+          python generate.py
 
       - name: Commit & push if changed
         run: |
