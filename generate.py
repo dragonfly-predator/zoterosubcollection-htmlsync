@@ -39,6 +39,7 @@ def zotero_get(path, params=None):
     url = BASE_URL + path
     if params:
         url += "?" + urllib.parse.urlencode(params)
+    print(f"DEBUG URL: {url}", file=sys.stderr)
     req = urllib.request.Request(url, headers={
         "Zotero-API-Key": API_KEY,
         "Zotero-API-Version": "3",
