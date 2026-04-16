@@ -368,12 +368,21 @@ def main():
     items = fetch_all_items(COLLECTION)
     print(f"  {len(items)} item(s) retrieved.")
 
-    # Sort by first author last name, then title
+    # Sort by first author last name, then title (articles stripped)
     def sort_key(item):
         d = item.get("data", {})
-        authors = [c for c in d.get("creators", []) if c.get("creatorType") == "author"]
-        last = authors[0].get("lastName", "zzzz").lower() if authors else "zzzz"
-        return (last, d.get("title", "").lower())
+        creators = d.get("creators", [])
+        authors = [c for c in creators if c.get("creatorType") == "author"]
+        primary = (authors or creators or [{}])[0]
+        last = (primary.get("lastName") or primary.get("name") or "").lower().strip()
+
+        title = d.get("title", "").lower().strip()
+        for article in ("the ", "a ", "an "):
+            if title.startswith(article):
+                title = title[len(article):]
+                break
+
+        return (last or "zzzz", title)
 
     items.sort(key=sort_key)
 
