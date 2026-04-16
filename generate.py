@@ -341,10 +341,13 @@ def main():
     print(f"  {len(items)} item(s) retrieved.")
 
     # Sort by first author last name, then title
-    def sort_key(item):
+   def sort_key(item):
         d = item.get("data", {})
-        authors = [c for c in d.get("creators", []) if c.get("creatorType") == "author"]
-        last = authors[0].get("lastName", "zzzz").lower() if authors else "zzzz"
+        creators = d.get("creators", [])
+        authors = [c for c in creators if c.get("creatorType") == "author"]
+        editors = [c for c in creators if c.get("creatorType") == "editor"]
+        primary = authors if authors else editors
+        last = primary[0].get("lastName", "zzzz").lower() if primary else "zzzz"
         return (last, d.get("title", "").lower())
 
     items.sort(key=sort_key)
