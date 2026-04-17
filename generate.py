@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Fetches a Zotero subcollection via the Web API and generates index.html with MLA citations and tags.
+Fetches a Zotero subcollection via the Web API and generates index.html with MLA citations.
 
 Required environment variables:
   ZOTERO_API_KEY      — your Zotero API key
@@ -14,6 +14,7 @@ Optional:
 """
 
 import os
+import re
 import sys
 import json
 import string
@@ -69,81 +70,82 @@ def fetch_all_items(collection_key):
         start += limit
     return items
 
+# ── Helpers ───────────────────────────────────────────────────────────────────
+
+def extract_year(date_str):
+    """Extract a 4-digit year from any date string (e.g. 'July 2024', '2024-07-01')."""
+    if not date_str:
+        return ""
+    m = re.search(r'\b(1[5-9]\d\d|20\d\d)\b', date_str)
+    return m.group(1) if m else ""
+
 # ── MLA formatting ────────────────────────────────────────────────────────────
 
 def format_author_mla(creator):
-    """Format a single creator for MLA."""
     if "lastName" in creator and "firstName" in creator:
         return f"{creator['lastName']}, {creator['firstName']}"
     return creator.get("name", "")
 
 def format_author_normal(creator):
-    """Format a creator in normal (non-inverted) order: First Last."""
     if "firstName" in creator and "lastName" in creator:
         return f"{creator['firstName']} {creator['lastName']}".strip()
     return creator.get("name", "")
 
 def format_authors_mla(creators):
-    """Format a list of creators in MLA 9th-edition style.
-
-    - 1 author:  Last, First.
-    - 2–3 authors: Last, First, First Last, and First Last.
-    - 4+ authors: Last, First, et al.
-    """
+    """MLA 9th-edition author list."""
     authors = [c for c in creators if c.get("creatorType") == "author"]
     if not authors:
-        authors = creators  # fallback
+        authors = creators
     if not authors:
         return ""
     if len(authors) == 1:
         return format_author_mla(authors[0])
     if len(authors) <= 3:
-        # First author inverted; remaining in normal order
         parts = [format_author_mla(authors[0])]
         for a in authors[1:-1]:
             parts.append(format_author_normal(a))
         parts_str = ", ".join(parts)
         return f"{parts_str}, and {format_author_normal(authors[-1])}"
-    # 4+ authors: et al.
     return f"{format_author_mla(authors[0])}, et al."
 
 def format_mla(data):
     """
-    Build an MLA 9th-edition citation string for common item types.
-    Returns a plain-text string (HTML escaping happens later).
+    Build an MLA 9th-edition citation string.
+    Returns plain text — *italics* markers and URL placeholders resolved later.
     """
     item_type  = data.get("itemType", "")
     title      = data.get("title", "Untitled")
     creators   = data.get("creators", [])
-    year       = (data.get("date") or "")[:4]
+    year       = extract_year(data.get("date") or "")
     url        = data.get("url", "")
     doi        = data.get("DOI", "")
     publisher  = data.get("publisher", "") or data.get("institution", "")
-    pub_place  = data.get("place", "")
     journal    = data.get("publicationTitle", "") or data.get("journalAbbreviation", "")
     volume     = data.get("volume", "")
     issue      = data.get("issue", "")
     pages      = data.get("pages", "")
+    edition    = data.get("edition", "")
     website    = data.get("websiteTitle", "") or data.get("blogTitle", "")
-    accessed   = data.get("accessDate", "")
 
     authors_str = format_authors_mla(creators)
-
     parts = []
 
     # Authors
     if authors_str:
-        parts.append(authors_str if authors_str.endswith(".") else authors_str + ".")
+        parts.append(authors_str + ".")
 
     # Title
     if item_type in ("journalArticle", "magazineArticle", "newspaperArticle",
                      "bookSection", "conferencePaper", "blogPost", "webpage"):
-        # For webpages/blogPosts, skip the title entirely if the field is empty
-        if title or item_type not in ("webpage", "blogPost"):
-            end = "" if title.rstrip() and title.rstrip()[-1] in ".?!" else "."
-            parts.append(f'"{title}{end}"')
+        end = "" if title.rstrip() and title.rstrip()[-1] in ".?!" else "."
+        parts.append(f'"{title}{end}"')
     else:
         parts.append(f"*{title}*.")
+
+    # Edition (books, reports, theses)
+    if edition and item_type in ("book", "report", "thesis"):
+        ed_str = edition if re.search(r'\bed\b', edition, re.I) else f"{edition} ed."
+        parts.append(ed_str + ",")
 
     # Container / source
     if item_type == "journalArticle":
@@ -161,9 +163,13 @@ def format_mla(data):
             if pages:
                 parts.append(f"pp. {pages}.")
             else:
-                # Close the entry with a period if there are no pages
                 if parts and parts[-1].endswith(","):
                     parts[-1] = parts[-1][:-1] + "."
+        else:
+            # No journal title — still emit year
+            if year:
+                parts.append(year + ".")
+
     elif item_type == "bookSection":
         book_title = data.get("bookTitle", "")
         editors = [c for c in creators if c.get("creatorType") == "editor"]
@@ -181,8 +187,8 @@ def format_mla(data):
             parts.append(year + ",")
         if pages:
             parts.append(f"pp. {pages}.")
+
     elif item_type in ("book", "thesis", "report"):
-        # If the book has an author AND an editor, place editor after title
         editors = [c for c in creators if c.get("creatorType") == "editor"]
         authors = [c for c in creators if c.get("creatorType") == "author"]
         if editors and authors:
@@ -195,6 +201,7 @@ def format_mla(data):
             parts.append(f"{publisher},")
         if year:
             parts.append(year + ".")
+
     elif item_type in ("webpage", "blogPost"):
         if website:
             parts.append(f"*{website}*,")
@@ -202,14 +209,14 @@ def format_mla(data):
             parts.append(year + ".")
         if url:
             parts.append(url + ".")
+
     else:
-        # Generic fallback
         if publisher:
             parts.append(f"{publisher},")
         if year:
             parts.append(year + ".")
 
-    # DOI / URL fallback for academic items
+    # DOI / URL for academic items
     if item_type in ("journalArticle", "conferencePaper") and (doi or url):
         loc = f"https://doi.org/{doi}" if doi else url
         parts.append(loc + ".")
@@ -225,6 +232,9 @@ HTML_TEMPLATE = string.Template("""\
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>$title</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Gudea:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -237,59 +247,28 @@ HTML_TEMPLATE = string.Template("""\
 
   <main>
     <div class="controls">
-      <input type="search" id="search" placeholder="Filter by title, author, or tag&hellip;" aria-label="Search">
-      <div class="tag-filters" id="tag-filters"></div>
+      <input type="search" id="search" placeholder="Search bibliography&hellip;" aria-label="Search bibliography">
     </div>
 
     <ol class="bibliography" id="bibliography">
 $items
     </ol>
 
-    <p class="empty-msg" id="empty-msg" hidden>No items match your filter.</p>
+    <p class="empty-msg" id="empty-msg" hidden>No items match your search.</p>
   </main>
 
   <script>
     const search = document.getElementById('search');
-    const tagFilters = document.getElementById('tag-filters');
     const bibliography = document.getElementById('bibliography');
     const emptyMsg = document.getElementById('empty-msg');
     const items = Array.from(bibliography.querySelectorAll('li'));
-
-    // Build tag buttons from unique tags across all items
-    const allTags = new Set();
-    items.forEach(li => {
-      (li.dataset.tags || '').split('|').filter(Boolean).forEach(t => allTags.add(t));
-    });
-
-    let activeTag = null;
-
-    [...allTags].sort().forEach(tag => {
-      const btn = document.createElement('button');
-      btn.className = 'tag-btn';
-      btn.textContent = tag;
-      btn.addEventListener('click', () => {
-        if (activeTag === tag) {
-          activeTag = null;
-          btn.classList.remove('active');
-        } else {
-          activeTag = tag;
-          document.querySelectorAll('.tag-btn').forEach(b => b.classList.remove('active'));
-          btn.classList.add('active');
-        }
-        applyFilters();
-      });
-      tagFilters.appendChild(btn);
-    });
 
     function applyFilters() {
       const q = search.value.toLowerCase();
       let visible = 0;
       items.forEach(li => {
         const text = li.dataset.search || '';
-        const tags = (li.dataset.tags || '').split('|');
-        const matchesSearch = !q || text.includes(q);
-        const matchesTag = !activeTag || tags.includes(activeTag);
-        const show = matchesSearch && matchesTag;
+        const show = !q || text.includes(q);
         li.hidden = !show;
         if (show) visible++;
       });
@@ -303,54 +282,46 @@ $items
 """)
 
 ITEM_TEMPLATE = """\
-      <li data-search="{search}" data-tags="{tags}">
+      <li data-search="{search}">
         <p class="citation">{citation}</p>
-        {tag_html}
       </li>"""
 
+def linkify(text):
+    """Wrap bare http/https URLs in <a> tags. Input is already HTML-escaped."""
+    return re.sub(
+        r'(?<!["\'])(https?://[^\s<>"]+)',
+        r'<a href="\1" target="_blank" rel="noopener noreferrer">\1</a>',
+        text
+    )
+
 def italicize(citation_text):
-    """Convert *text* markers to <em>text</em>, then escape remaining HTML."""
-    import re
-    # Split on *...* markers, alternating plain / italic segments
+    """Convert *text* → <em>text</em>, escape HTML, then linkify URLs."""
     parts = re.split(r'\*([^*]+)\*', citation_text)
     result = []
     for i, part in enumerate(parts):
-        if i % 2 == 1:  # inside *...*
+        if i % 2 == 1:
             result.append(f"<em>{escape(part)}</em>")
         else:
-            result.append(escape(part))
+            result.append(linkify(escape(part)))
     return "".join(result)
-
-def build_tag_html(tags):
-    if not tags:
-        return ""
-    spans = "".join(f'<span class="tag">{escape(t)}</span>' for t in tags)
-    return f'<div class="tags">{spans}</div>'
 
 def render_items(items):
     rendered = []
     for item in items:
         data = item.get("data", {})
         citation = format_mla(data)
-        raw_tags = [t["tag"] for t in data.get("tags", [])]
-        tag_html = build_tag_html(raw_tags)
-        tags_attr = "|".join(raw_tags)
 
-        # Search index: title + authors (lowercased)
         search_text = (
             data.get("title", "") + " " +
             " ".join(
                 f"{c.get('lastName','')} {c.get('firstName','')}"
                 for c in data.get("creators", [])
-            ) + " " +
-            " ".join(raw_tags)
+            )
         ).lower()
 
         rendered.append(ITEM_TEMPLATE.format(
             search=escape(search_text),
-            tags=escape(tags_attr),
-            citation=italicize(citation),  # handles *italics* → <em>
-            tag_html=tag_html,
+            citation=italicize(citation),
         ))
     return "\n".join(rendered)
 
@@ -358,8 +329,8 @@ def render_items(items):
 
 def main():
     errors = []
-    if not API_KEY:   errors.append("ZOTERO_API_KEY")
-    if not USER_ID:   errors.append("ZOTERO_USER_ID")
+    if not API_KEY:    errors.append("ZOTERO_API_KEY")
+    if not USER_ID:    errors.append("ZOTERO_USER_ID")
     if not COLLECTION: errors.append("ZOTERO_COLLECTION")
     if errors:
         print(f"Error: missing environment variable(s): {', '.join(errors)}", file=sys.stderr)
@@ -369,25 +340,18 @@ def main():
     items = fetch_all_items(COLLECTION)
     print(f"  {len(items)} item(s) retrieved.")
 
-    # Sort by first author last name, then title (articles stripped)
     def sort_key(item):
         d = item.get("data", {})
         creators = d.get("creators", [])
         authors = [c for c in creators if c.get("creatorType") == "author"]
         primary = (authors or creators or [{}])[0]
         last = (primary.get("lastName") or primary.get("name") or "").lower().strip()
-
         title = d.get("title", "").lower().strip()
-        # For webpages/blogPosts with no title, sort by website title instead
-        if not title and d.get("itemType") in ("webpage", "blogPost"):
-            title = (d.get("websiteTitle") or d.get("blogTitle") or "").lower().strip()
         for article in ("the ", "a ", "an "):
             if title.startswith(article):
                 title = title[len(article):]
                 break
-
-        # If no author, sort by title/website as the primary key (not "zzzz")
-        return (last if last else title, "" if not last else title)
+        return (last or "zzzz", title)
 
     items.sort(key=sort_key)
 
