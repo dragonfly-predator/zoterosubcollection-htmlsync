@@ -138,9 +138,10 @@ def format_mla(data):
     # Title
     if item_type in ("journalArticle", "magazineArticle", "newspaperArticle",
                      "bookSection", "conferencePaper", "blogPost", "webpage"):
-        # Period goes inside quotes unless title already ends in punctuation
-        end = "" if title.rstrip() and title.rstrip()[-1] in ".?!" else "."
-        parts.append(f'"{title}{end}"')
+        # For webpages/blogPosts, skip the title entirely if the field is empty
+        if title or item_type not in ("webpage", "blogPost"):
+            end = "" if title.rstrip() and title.rstrip()[-1] in ".?!" else "."
+            parts.append(f'"{title}{end}"')
     else:
         parts.append(f"*{title}*.")
 
@@ -377,6 +378,9 @@ def main():
         last = (primary.get("lastName") or primary.get("name") or "").lower().strip()
 
         title = d.get("title", "").lower().strip()
+        # For webpages/blogPosts with no title, sort by website title instead
+        if not title and d.get("itemType") in ("webpage", "blogPost"):
+            title = (d.get("websiteTitle") or d.get("blogTitle") or "").lower().strip()
         for article in ("the ", "a ", "an "):
             if title.startswith(article):
                 title = title[len(article):]
