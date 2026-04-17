@@ -315,6 +315,8 @@ def render_items(items):
 
         search_text = (
             data.get("title", "") + " " +
+            data.get("websiteTitle", "") + " " +
+            data.get("blogTitle", "") + " " +
             " ".join(
                 f"{c.get('lastName','')} {c.get('firstName','')}"
                 for c in data.get("creators", [])
