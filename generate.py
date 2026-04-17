@@ -133,7 +133,7 @@ def format_mla(data):
 
     # Authors
     if authors_str:
-        parts.append(authors_str + ".")
+        parts.append(authors_str if authors_str.endswith(".") else authors_str + ".")
 
     # Title
     if item_type in ("journalArticle", "magazineArticle", "newspaperArticle",
@@ -386,7 +386,8 @@ def main():
                 title = title[len(article):]
                 break
 
-        return (last or "zzzz", title)
+        # If no author, sort by title/website as the primary key (not "zzzz")
+        return (last if last else title, "" if not last else title)
 
     items.sort(key=sort_key)
 
