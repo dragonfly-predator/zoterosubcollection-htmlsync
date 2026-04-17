@@ -134,11 +134,13 @@ def format_mla(data):
     if authors_str:
         parts.append(authors_str + ".")
 
-    # Title
+    # Title (webpage/blogPost use website title as container; individual page title omitted)
     if item_type in ("journalArticle", "magazineArticle", "newspaperArticle",
-                     "bookSection", "conferencePaper", "blogPost", "webpage"):
+                     "bookSection", "conferencePaper"):
         end = "" if title.rstrip() and title.rstrip()[-1] in ".?!" else "."
         parts.append(f'"{title}{end}"')
+    elif item_type in ("webpage", "blogPost"):
+        pass
     else:
         parts.append(f"*{title}*.")
 
@@ -342,8 +344,20 @@ def main():
 
     def sort_key(item):
         d = item.get("data", {})
+        item_type = d.get("itemType", "")
         creators = d.get("creators", [])
         authors = [c for c in creators if c.get("creatorType") == "author"]
+
+        # Webpages: alphabetize by website title, not author
+        if item_type in ("webpage", "blogPost"):
+            primary = d.get("websiteTitle", "") or d.get("blogTitle", "") or d.get("title", "")
+            last = primary.lower().strip()
+            for article in ("the ", "a ", "an "):
+                if last.startswith(article):
+                    last = last[len(article):]
+                    break
+            return (last or "zzzz", "")
+
         primary = (authors or creators or [{}])[0]
         last = (primary.get("lastName") or primary.get("name") or "").lower().strip()
         title = d.get("title", "").lower().strip()
