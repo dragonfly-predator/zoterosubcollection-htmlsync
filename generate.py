@@ -147,9 +147,9 @@ def format_mla(data):
     authors_str = format_authors_mla(creators)
     parts = []
 
-    # Authors
+    # Authors — avoid double period when name ends with an abbreviation
     if authors_str:
-        parts.append(authors_str + ".")
+        parts.append(authors_str if authors_str.endswith(".") else authors_str + ".")
 
     # Title (webpage/blogPost use website title as container; individual page title omitted)
     if item_type in ("journalArticle", "magazineArticle", "newspaperArticle",
