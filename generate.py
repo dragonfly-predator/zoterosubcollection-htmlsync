@@ -30,7 +30,7 @@ USER_ID       = os.environ.get("ZOTERO_USER_ID", "")
 COLLECTION    = os.environ.get("ZOTERO_COLLECTION", "")
 LIBRARY_TYPE  = os.environ.get("ZOTERO_LIBRARY_TYPE", "user")
 OUTPUT_FILE   = os.environ.get("OUTPUT_FILE", "index.html")
-PAGE_TITLE    = os.environ.get("PAGE_TITLE", "Zotero Library")
+PAGE_TITLE    = os.environ.get("PAGE_TITLE", "")
 
 BASE_URL = f"https://api.zotero.org/{LIBRARY_TYPE}s/{USER_ID}"
 
@@ -233,7 +233,7 @@ HTML_TEMPLATE = string.Template("""\
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>$title</title>
+  <title>${title_tag}</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Gudea:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
@@ -241,7 +241,7 @@ HTML_TEMPLATE = string.Template("""\
 </head>
 <body>
   <header>
-    <h1>$title</h1>
+    $h1
     <p class="meta">
       $count item$plural &middot; last synced $timestamp
     </p>
@@ -289,10 +289,10 @@ ITEM_TEMPLATE = """\
       </li>"""
 
 def linkify(text):
-    """Wrap bare http/https URLs in <a> tags. Input is already HTML-escaped."""
+    """Wrap bare http/https URLs in <a> tags. Trailing punctuation excluded from href."""
     return re.sub(
-        r'(?<!["\'])(https?://[^\s<>"]+)',
-        r'<a href="\1" target="_blank" rel="noopener noreferrer">\1</a>',
+        r'(?<!["\'])(https?://[^\s<>"]+?)([.,;:!?)]*(?=\s|$))',
+        r'<a href="\1" target="_blank" rel="noopener noreferrer">\1</a>\2',
         text
     )
 
@@ -362,30 +362,4 @@ def main():
 
         primary = (authors or creators or [{}])[0]
         last = (primary.get("lastName") or primary.get("name") or "").lower().strip()
-        title = d.get("title", "").lower().strip()
-        for article in ("the ", "a ", "an "):
-            if title.startswith(article):
-                title = title[len(article):]
-                break
-        return (last or "zzzz", title)
-
-    items.sort(key=sort_key)
-
-    timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
-    count = len(items)
-    plural = "" if count == 1 else "s"
-
-    html = HTML_TEMPLATE.substitute(
-        title=escape(PAGE_TITLE),
-        count=count,
-        plural=plural,
-        timestamp=timestamp,
-        items=render_items(items),
-    )
-
-    with open(OUTPUT_FILE, "w", encoding="utf-8") as f:
-        f.write(html)
-    print(f"  Written to {OUTPUT_FILE}")
-
-if __name__ == "__main__":
-    main()
+        title = d.get("title",
