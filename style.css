@@ -113,9 +113,4 @@ h1 {
 
 .bibliography li {
   padding: 0.55rem 0;
-  border-bottom: 1px solid var(--border);
-}
-.bibliography li:last-child { border-bottom: none; }
-
-.citation {
-  font-size: 0.97
+  border-bottom: 1px solid var(-
