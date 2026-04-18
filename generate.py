@@ -362,4 +362,35 @@ def main():
 
         primary = (authors or creators or [{}])[0]
         last = (primary.get("lastName") or primary.get("name") or "").lower().strip()
-        title = d.get("title",
+        title = d.get("title", "").lower().strip()
+        for article in ("the ", "a ", "an "):
+            if title.startswith(article):
+                title = title[len(article):]
+                break
+        return (last or "zzzz", title)
+
+    items.sort(key=sort_key)
+
+    timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    count = len(items)
+    plural = "" if count == 1 else "s"
+
+    title_tag = escape(PAGE_TITLE) if PAGE_TITLE else "Bibliography"
+    h1 = f"<h1>{escape(PAGE_TITLE)}</h1>" if PAGE_TITLE else ""
+
+    html = HTML_TEMPLATE.substitute(
+        title_tag=title_tag,
+        h1=h1,
+        count=count,
+        plural=plural,
+        timestamp=timestamp,
+        items=render_items(items),
+    )
+
+    with open(OUTPUT_FILE, "w", encoding="utf-8") as f:
+        f.write(html)
+    print(f"  Written to {OUTPUT_FILE}")
+
+if __name__ == "__main__":
+    main()
+  
