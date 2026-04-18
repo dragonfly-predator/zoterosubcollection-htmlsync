@@ -36,8 +36,9 @@ BASE_URL = f"https://api.zotero.org/{LIBRARY_TYPE}s/{USER_ID}"
 
 # ── Zotero API helpers ────────────────────────────────────────────────────────
 
-def zotero_get(path, params=None):
-    """GET from the Zotero API, returns parsed JSON."""
+def zotero_get(path, params=None, retries=4, backoff=5):
+    """GET from the Zotero API, returns parsed JSON. Retries on 5xx/timeout."""
+    import time
     url = BASE_URL + path
     if params:
         url += "?" + urllib.parse.urlencode(params)
@@ -45,8 +46,24 @@ def zotero_get(path, params=None):
         "Zotero-API-Key": API_KEY,
         "Zotero-API-Version": "3",
     })
-    with urllib.request.urlopen(req) as resp:
-        return json.loads(resp.read().decode())
+    for attempt in range(retries):
+        try:
+            with urllib.request.urlopen(req, timeout=30) as resp:
+                return json.loads(resp.read().decode())
+        except urllib.error.HTTPError as e:
+            if e.code in (429, 500, 502, 503, 504) and attempt < retries - 1:
+                wait = backoff * (2 ** attempt)
+                print(f"  HTTP {e.code} — retrying in {wait}s (attempt {attempt+1}/{retries})")
+                time.sleep(wait)
+            else:
+                raise
+        except OSError:
+            if attempt < retries - 1:
+                wait = backoff * (2 ** attempt)
+                print(f"  Timeout — retrying in {wait}s (attempt {attempt+1}/{retries})")
+                time.sleep(wait)
+            else:
+                raise
 
 def fetch_all_items(collection_key):
     """Fetch all items in a collection, handling pagination."""
@@ -218,8 +235,9 @@ def format_mla(data):
         if year:
             parts.append(year + ".")
 
-    # DOI / URL for academic items
-    if item_type in ("journalArticle", "conferencePaper") and (doi or url):
+    # DOI / URL — append for any item type that has one,
+    # but skip webpage/blogPost (URL already emitted above)
+    if item_type not in ("webpage", "blogPost") and (doi or url):
         loc = f"https://doi.org/{doi}" if doi else url
         parts.append(loc + ".")
 
@@ -393,4 +411,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-  
