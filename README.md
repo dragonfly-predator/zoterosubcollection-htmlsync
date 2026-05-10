@@ -2,7 +2,7 @@
 
 # Zotero → HTML Page Sync
 
-Automatically publishes a formatted MLA 9th-edition bibliography from a Zotero subcollection to a GitHub Pages site. The page includes full-text search.
+Automatically publishes a formatted MLA 9th-edition bibliography from a Zotero subcollection to a GitHub Pages site. The page includes full-text search. Made with Claude.
 
 ## Files
 
